@@ -34,7 +34,6 @@
     if(window.attensionModul.users.indexOf(uid) < 0){
       window.attensionModul.users.push(uid)
     }
-
   }
 
   // 移除关注用户
