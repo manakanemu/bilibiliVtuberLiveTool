@@ -8,7 +8,7 @@ b站(bilibili) vtuber直播，同传字幕绑定器--油猴脚本。关注同传
 [问题反馈](#问题反馈)  
 
 ## 脚本特性
-### 脚本可以自动同传man发表的评论，并以类似底部弹幕的形式显示在屏幕上。
+### 脚本可以自动捕获同传man发表的评论，并以类似底部弹幕的形式显示在屏幕上。
 ![软件特性](https://github.com/manakanemu/bilibiliVtuberLiveTool/blob/master/web/1.png)  
 ### 全屏后可以正常显示
 ![全屏幕](https://github.com/manakanemu/bilibiliVtuberLiveTool/blob/master/web/2.png)
