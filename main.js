@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         b站vtuber直播同传评论转字幕
 // @namespace    http://tampermonkey.net/
-// @version      0.1.3
+// @version      0.1.4
 // @author       You
 // @match        https://live.bilibili.com/*
 // @grant        none
