@@ -14,25 +14,40 @@
 
 
 (function () {
-
+// 字幕样式配置
   const widgeConfig = {
-    color:'white',
-    fontSize:'50px',
-    bottom:'0px'
+    color: 'white',
+    fontSize: '50px',
+    bottom: '10px',
   }
 
-  window.attensionModul = {}
-  window.attensionModul.app = null
-  window.attensionModul.users = []
-  window.attensionModul.observe = {}
+
+  const removeBracket = true
+
+  window.attentionModul = {}
+  window.attentionModul.app = null
+  window.attentionModul.users = []
+  window.attentionModul.observe = {}
+
+
+  // 测试用组件
+  window.attentionModul.debug = {}
+  window.attentionModul.debug.setComment = function (index, comment) {
+    setComment(index, comment)
+  }
+  window.attentionModul.debug.addAttentionUser = addAttentionUser
+  window.attentionModul.debug.showDOM = function () {
+    return [document.getElementById('comment-container')]
+  }
 
 
   // 添加关注用户
   function addAttentionUser(uid) {
     console.log('add subscribe:', uid)
     $('textarea:eq(0)').click()
-    if(window.attensionModul.users.indexOf(uid) < 0){
-      window.attensionModul.users.push(uid)
+    if (window.attentionModul.users.indexOf(uid) < 0) {
+      window.attentionModul.users.push(uid)
+      window.attentionModul.app.comments.push(null)
     }
   }
 
@@ -41,49 +56,64 @@
 
   }
 
-  //将匹配评论添加到vue变量中对应的字幕dom
-  function setComment(index, comment) {
-    console.log('comment',comment)
-    window.attensionModul.app.comments.splice(index,1,comment)
+  // 移除括号
+  function removeBreaket(comment) {
+    let r = comment.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
+    return r
   }
 
-  //评论内容筛选
+  //将匹配评论添加到vue变量中对应的字幕DOM
+  function setComment(index, comment) {
+    console.log('comment', comment)
+    window.attentionModul.app.comments.splice(index, 1, comment)
+  }
+
+  //匹配评论发出者与关注用户
   function chatFilter(nodeList) {
     for (let item of nodeList) {
       const uid = item.getAttribute('data-uid')
       const comment = item.getAttribute('data-danmaku')
-      const index = window.attensionModul.users.indexOf(uid)
+      const index = window.attentionModul.users.indexOf(uid)
       if (index > -1) {
-        setComment(index, comment)
+        if (removeBreaket) {
+          setComment(index, removeBreaket(comment))
+        } else {
+          setComment(index, comment)
+        }
       }
     }
   }
 
-  // DOM突变时间监听回调函数
+  // DOM突变事件回调函数
   function mutationListener(mutationList) {
-    window.attensionModul.observe.message = mutationList
+    window.attentionModul.observe.message = mutationList
 
-    if (window.attensionModul.observe.message[0].addedNodes.length > 0) {
-      chatFilter(window.attensionModul.observe.message[0].addedNodes)
+    if (window.attentionModul.observe.message[0].addedNodes.length > 0) {
+      chatFilter(window.attentionModul.observe.message[0].addedNodes)
     }
   }
-  // 添加字幕组件
+
+  // 注入字幕组件
   ;(function insertCommentWidget() {
     const container = $('.bilibili-live-player-video-danmaku')
     if (container.length > 0) {
-      const commentWidget = $('<div id="comment-container" ><div :style="commentStyle" v-for="(comment,index) in comments" v-show="comment">{{comment}}</div></div>')
-      let style = 'z-index: 999;position: absolute;margin: 10px;left: 50%;transform: translateX(-50%);width:100%;display: flex;flex-flow: column;place-content: end center;'
-      for(let key in widgeConfig){
-        style += key+':'+widgeConfig[key]+';'
+      const commentWidget = $('<div id="comment-container" :style="widgetStyle"><div v-for="(comment,index) in comments" :style="boxStyle"><div v-show="comment" :style="commentStyle">{{comment}}</div></div></div>')
+
+      let widgetStyle = 'z-index: 999;position:absolute;left:50%;transform:translateX(-50%);width:90%;'
+      let boxStyle = ''
+      let commentStyle = 'display:inline-block;backgroundColor:rgba(0,0,0,0.5);position:relative;left:50%;transform:translateX(-50%);word-break: break-all;padding:10px;'
+      for (let key in widgeConfig) {
+        widgetStyle += key + ':' + widgeConfig[key] + ';'
       }
-      commentWidget.attr('style',style)
       container.append(commentWidget)
-      window.attensionModul.app = new Vue({
-        el:'#comment-container',
-        data(){
+      window.attentionModul.app = new Vue({
+        el: '#comment-container',
+        data() {
           return {
-            comments:new Array(window.attensionModul.users.length),
-            commentStyle:'display: flex;flex-flow: row;place-content: center center;'
+            widgetStyle: widgetStyle,
+            boxStyle: boxStyle,
+            comments: new Array(window.attentionModul.users.length),
+            commentStyle: commentStyle
           }
         }
       })
@@ -94,7 +124,7 @@
       })
     }
   })();
-// 在用户名点击菜单添加关注组件
+// 在用户名点击菜单注入关注选项
   ;(function insertMenuWidget() {
       const menu = $('.danmaku-menu')
       const menuItem = menu.find('.report-this-guy')
@@ -115,13 +145,13 @@
   )();
   //
 
-  // 监听评论变化
-  window.attensionModul.observe.observer = new MutationObserver(mutationListener)
-  window.attensionModul.observe.config = {childList: true}
+  // 监听评论DOM突变事件
+  window.attentionModul.observe.observer = new MutationObserver(mutationListener)
+  window.attentionModul.observe.config = {childList: true}
   ;(function openObserver() {
-    window.attensionModul.observe.anchor = document.getElementsByClassName('chat-history-list')[0]
-    if (window.attensionModul.observe.anchor) {
-      window.attensionModul.observe.observer.observe( window.attensionModul.observe.anchor, window.attensionModul.observe.config)
+    window.attentionModul.observe.anchor = document.getElementsByClassName('chat-history-list')[0]
+    if (window.attentionModul.observe.anchor) {
+      window.attentionModul.observe.observer.observe(window.attentionModul.observe.anchor, window.attentionModul.observe.config)
     } else {
       requestAnimationFrame(function () {
           openObserver()

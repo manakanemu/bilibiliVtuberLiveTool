@@ -9,16 +9,16 @@ b站(bilibili) vtuber直播，同传字幕绑定器--油猴脚本。关注同传
 [问题反馈](#问题反馈)  
 
 ## 脚本特性
-### 脚本可以自动捕获同传man发表的评论，并以类似底部弹幕的形式显示在屏幕上。
-![1.png](https://i.loli.net/2020/03/29/7VfWecFv2Ho3qnD.png) 
-### 全屏后可以正常显示
-![2.png](https://i.loli.net/2020/03/29/sDyGitT6XJ9UoH4.png)
+### 自动捕获同传man的评论，以类底部弹幕的形式显示,并自动去除括号。
+![脚本效果web/1.png](web/1.png) 
+### 允许全屏使用
+![脚本效果web/2.png](web/2.png)
 
 
 ## 使用方法
 * 前往Greasy Fork安装脚本,[点击此处](https://greasyfork.org/zh-CN/scripts/398879-b%E7%AB%99vtuber%E7%9B%B4%E6%92%AD%E5%90%8C%E4%BC%A0%E8%AF%84%E8%AE%BA%E8%BD%AC%E5%AD%97%E5%B9%95)
 * 打开直播页面后，点击评论区同传man用户名，在弹出菜单中点击最下方的 **添加字幕特别关注**  
-![4.png](https://i.loli.net/2020/03/29/Ju34KPD2c6jWrxa.png)  
+![添加关注方法web/4.png](web/4.png)  
 * 设置完毕，等同传man发表新评论是，就会自动捕获并更新到播放器底部。
 * 注：脚本可以添加多个同传man，重复上一步操作即可。
 
