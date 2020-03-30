@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         不知道有没有用的同传man辅助
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @author       You
 // @match        https://live.bilibili.com/*
 // @grant        none
@@ -13,44 +13,39 @@
 
 
 (function () {
-  // 获取评论区内容
-  function getText() {
-    return window.translatorTool.vm.chatInput
-  }
-// 设置评论区内容
-  function setText(text) {
-    window.translatorTool.vm.chatInput = text
-  }
+
   //debug用
   function showVm() {
     return [document.getElementsByClassName('control-panel-ctnr')[0].__vue__]
   }
+
+  function addBraket(){
+    let comment = window.translatorTool.vm.chatInput.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
+    window.translatorTool.vm.chatInput = '【' + comment + '】'
+  }
+  function removeBraket(){
+    let comment = window.translatorTool.vm.chatInput.match(/^(.*?)[ 】]*$/i)[1]
+    window.translatorTool.vm.chatInput = comment
+  }
+
   // 定义translatortools对象
   window.translatorTool = {}
-  window.translatorTool.getText = getText
-  window.translatorTool.setText = setText
   window.translatorTool.showVm = showVm
+  window.translatorTool.add = addBraket
+  window.translatorTool.remove = removeBraket
 
   // 递归检索评论框存在性
   ;(function init() {
     const el = $('#chat-control-panel-vm textarea')
     if (el.length > 0) {
-      window.translatorTool.el = el
       window.translatorTool.vm = document.getElementsByClassName('control-panel-ctnr')[0].__vue__
-      // 监听评论区失去焦点
-      window.translatorTool.el.blur(function () {
-        console.log('blur')
-        let comment = window.translatorTool.getText()
-        comment = comment.match(/^[ ]*(.+?)[ ]*$/i)[1]
-        comment = '【' + comment + '】'
-        window.translatorTool.setText(comment)
+      // 抬起按键添加括号
+      el.bind('keyup', function (e) {
+        window.translatorTool.add()
       })
-      // 监听评论区获得焦点
-      window.translatorTool.el.focus(function () {
-        console.log('focus')
-        let comment = window.translatorTool.getText()
-        comment = comment.match(/^[ 【]*(.+?)[ 】]*$/i)[1]
-        window.translatorTool.setText(comment)
+      el.bind('keydown',function(){
+        // el.setSelectionRange(0,1)
+        window.translatorTool.remove()
       })
     } else {
       requestAnimationFrame(function () {
