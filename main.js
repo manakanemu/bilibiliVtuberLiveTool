@@ -34,7 +34,7 @@
   window.attentionModul.debug.showDOM = function () {
     return [document.getElementById('comment-container'), document.getElementById('console-container')]
   }
-  window.attentionModul.config = JSON.parse(localStorage.getItem('config')|| '{"color":"","vertical":"2","fontSize":40}')
+  window.attentionModul.config = JSON.parse(localStorage.getItem('config')|| '{"color":"#ffffff","vertical":"2","fontSize":40}')
 
 
   // 添加关注用户
