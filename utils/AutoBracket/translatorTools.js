@@ -19,13 +19,19 @@
     return [document.getElementsByClassName('control-panel-ctnr')[0].__vue__]
   }
 
-  function addBraket(){
+  function addBraket() {
     let comment = window.translatorTool.vm.chatInput.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
     window.translatorTool.vm.chatInput = '【' + comment + '】'
   }
-  function removeBraket(){
+
+  function removeBraket() {
     let comment = window.translatorTool.vm.chatInput.match(/^(.*?)[ 】]*$/i)[1]
     window.translatorTool.vm.chatInput = comment
+  }
+
+  function removeLastBracket() {
+    let comment = window.translatorTool.vm.chatInput.match(/^(.*?)[ 】]*$/i)[1]
+    window.translatorTool.vm.chatInput = comment.substring(0, comment.length - 1) + '】】'
   }
 
   // 定义translatortools对象
@@ -33,6 +39,7 @@
   window.translatorTool.showVm = showVm
   window.translatorTool.add = addBraket
   window.translatorTool.remove = removeBraket
+  window.translatorTool.removeLast = removeLastBracket
 
   // 递归检索评论框存在性
   ;(function init() {
@@ -43,9 +50,12 @@
       el.bind('keyup', function (e) {
         window.translatorTool.add()
       })
-      el.bind('keydown',function(){
-        // el.setSelectionRange(0,1)
-        window.translatorTool.remove()
+      el.bind('keydown', function (e) {
+        if (e.keyCode === 8) {
+          window.translatorTool.removeLast()
+        } else {
+          window.translatorTool.remove()
+        }
       })
     } else {
       requestAnimationFrame(function () {
