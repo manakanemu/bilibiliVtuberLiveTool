@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         b站vtuber直播同传评论转字幕
 // @namespace    http://tampermonkey.net/
-// @version      0.2
-// @author       You
+// @version      0.3
+// @author       Manakanemu
 // @include      https://live.bilibili.com/*
 // @exclude      https://live.bilibili.com/p/*
 // @grant        GM_xmlhttpRequest
@@ -20,25 +20,22 @@
 
 
   const removeBracket = true
-
+  // 所有组件挂在attentionModul下，以App结尾的为绑定DOm的vue组件
   window.attentionModul = {}
-  window.attentionModul.commentApp = {}
-  window.attentionModul.consoleApp = {}
-  window.attentionModul.transApp = {}
-  window.attentionModul.users = []
-  window.attentionModul.observe = {}
-  window.attentionModul.dom = []
+  window.attentionModul.commentApp = {}  // 字幕组件
+  window.attentionModul.consoleApp = {} // 控制面板组件
+  window.attentionModul.transApp = {} // 翻译组件
+  window.attentionModul.users = [] // 关注用户列表
+  window.attentionModul.observe = {} // DOM突变时间监听器
+  // 从localstorage读取配置
+  window.attentionModul.config = JSON.parse(localStorage.getItem('config') || '{"color":"#ffffff","vertical":"2","fontSize":40}')
+
   // 测试用组件
   window.attentionModul.debug = {}
-  window.attentionModul.debug.setComment = function (index, comment) {
-    setComment(index, comment)
-  }
+  window.attentionModul.debug.setComment = setComment
   window.attentionModul.debug.addAttentionUser = addAttentionUser
-  window.attentionModul.debug.showDOM = function () {
-    return [document.getElementById('comment-container'), document.getElementById('console-container')]
-  }
-  window.attentionModul.config = JSON.parse(localStorage.getItem('config') || '{"color":"#ffffff","vertical":"2","fontSize":40}')
-  window.attentionModul.encodingObject = encodeObject
+  window.attentionModul.debug.showDOM = showDOM
+  window.attentionModul.debug.encodingObject = encodeObject
 
   // 添加关注用户
   function addAttentionUser(uid) {
@@ -54,6 +51,10 @@
 
   }
 
+  // 调试显示组件
+  function showDOM(){
+    return [document.getElementById('comment-container'), document.getElementById('console-container')]
+  }
   // 移除括号
   function removeBreaket(comment) {
     let r = comment.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
@@ -65,6 +66,7 @@
     window.attentionModul.commentApp.comments.splice(index, 1, comment)
   }
 
+  // 对象编码为url参数
   function encodeObject(obj) {
     let param = ''
     for (let key in obj) {
@@ -98,6 +100,7 @@
     }
   }
 
+  //保存控制台配置
   function saveConfig() {
     const config = {
       "color": window.attentionModul.consoleApp.color,
@@ -109,8 +112,6 @@
 
   // 注入控制台组件
   ;(function () {
-
-
     const consoleContainer = $('<div @mouseleave="consoleOut" @mouseover.stop="consoleIn" id="console-container" class="att-top"></div>')
     const widgetIcon = $('<div v-show="!isShowConsole"  class="att-icon-container att-top" ><div class="att-icon"></div></div>')
     const consoleWidget = $('<div v-show="isShowConsole" id="att-console" class="att-col"></div>')
@@ -164,6 +165,7 @@
       }
     })
   })();
+
   // 注入字幕组件
   ;(function insertCommentWidget() {
     const container = $('.bilibili-live-player-video-danmaku')
@@ -195,7 +197,8 @@
       })
     }
   })();
-// 在用户名点击菜单注入关注选项
+
+// 注入菜单组件
   ;(function insertMenuWidget() {
       const menu = $('.danmaku-menu')
       const menuItem = menu.find('.report-this-guy')
@@ -216,7 +219,7 @@
   )();
 
   // 注入翻译组件
-  function insertTranslateWidget() {
+  ;(function insertTranslateWidget() {
     let injectAnchor = $('.right-action')
     if (injectAnchor.length > 0) {
       const translateButton = $('<button id="att-translate" class="att-button" @click="translate">翻译</button>')
@@ -257,9 +260,8 @@
         insertTranslateWidget()
       }))
     }
-  }
+  })();
 
-  insertTranslateWidget();
   // 监听评论DOM突变事件
   window.attentionModul.observe.observer = new MutationObserver(mutationListener)
   window.attentionModul.observe.config = {childList: true}
