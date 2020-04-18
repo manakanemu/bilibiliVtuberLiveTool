@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         b站vtuber直播同传评论转字幕
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.3.3
 // @author       Manakanemu
 // @include      https://live.bilibili.com/*
 // @exclude      https://live.bilibili.com/p/*
@@ -10,7 +10,7 @@
 // @require      https://cdn.staticfile.org/vue/2.6.11/vue.min.js
 // @connect      youdao.com
 // @description  将vtuber直播时同传man的评论，以类似底部弹幕的形式展现在播放器窗口，免去在众多快速刷过的评论中找同传man的痛苦。
-
+// GM_xmlhttpRequest
 
 // ==/UserScript==
 
@@ -18,6 +18,7 @@
 (function () {
 // 字幕样式配置
 
+  const youdaoAPI = 'http://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'
 
   const removeBracket = true
   // 所有组件挂在attentionModul下，以App结尾的为绑定DOm的vue组件
@@ -28,14 +29,20 @@
   window.attentionModul.users = [] // 关注用户列表
   window.attentionModul.observe = {} // DOM突变时间监听器
   // 从localstorage读取配置
-  window.attentionModul.config = JSON.parse(localStorage.getItem('config') || '{"color":"#ffffff","vertical":"2","fontSize":40}')
+  window.attentionModul.config = JSON.parse(localStorage.getItem('config') || '{"color":"#ffffff","font-size":40}')
+  window.attentionModul.md5 = md5
 
   // 测试用组件
   window.attentionModul.debug = {}
   window.attentionModul.debug.setComment = setComment
   window.attentionModul.debug.addAttentionUser = addAttentionUser
   window.attentionModul.debug.showDOM = showDOM
-  window.attentionModul.debug.encodingObject = encodeObject
+  window.attentionModul.debug.addComment = addComment
+  window.attentionModul.test = function () {
+
+    window.attentionModul.debug.setComment(0, '测试')
+    window.attentionModul.debug.setComment(1, '测试测试')
+  }
 
   // 添加关注用户
   function addAttentionUser(uid) {
@@ -46,15 +53,22 @@
     }
   }
 
+  // 添加测试评论
+  function addComment(uid = 'test', uname = '测试', comment = '测试评论') {
+    const localComment = $('<div data-uid="' + uid + '" data-uname="' + uname + '" data-danmaku="' + comment + '">' + comment + '</div>')
+    $('.chat-history-list ').append(localComment)
+  }
+
   // 移除关注用户
   function removeAttentionUser() {
 
   }
 
   // 调试显示组件
-  function showDOM(){
+  function showDOM() {
     return [document.getElementById('comment-container'), document.getElementById('console-container')]
   }
+
   // 移除括号
   function removeBreaket(comment) {
     let r = comment.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
@@ -62,30 +76,25 @@
   }
 
   //将匹配评论添加到vue变量中对应的字幕DOM
-  function setComment(index, comment) {
+  function setComment(index, comment, username = '同传man') {
     window.attentionModul.commentApp.comments.splice(index, 1, comment)
   }
 
   // 对象编码为url参数
-  function encodeObject(obj) {
-    let param = ''
-    for (let key in obj) {
-      param += key + '=' + encodeURIComponent(obj[key]) + '&'
-    }
-    return param.substring(0, param.length - 1)
-  }
+
 
   //匹配评论发出者与关注用户
   function chatFilter(nodeList) {
     for (let item of nodeList) {
       const uid = item.getAttribute('data-uid')
       const comment = item.getAttribute('data-danmaku')
+      const username = item.getAttribute('data-uname')
       const index = window.attentionModul.users.indexOf(uid)
       if (index > -1) {
         if (removeBreaket) {
-          setComment(index, removeBreaket(comment))
+          setComment(index, removeBreaket(comment), username)
         } else {
-          setComment(index, comment)
+          setComment(index, comment, username)
         }
       }
     }
@@ -104,8 +113,8 @@
   function saveConfig() {
     const config = {
       "color": window.attentionModul.consoleApp.color,
-      "vertical": window.attentionModul.consoleApp.vertical,
-      "fontSize": window.attentionModul.consoleApp.fontSize
+      // "vertical": window.attentionModul.consoleApp.vertical,
+      // "font-size": window.attentionModul.consoleApp.fontSize
     }
     localStorage.setItem('config', JSON.stringify(config))
   }
@@ -115,11 +124,11 @@
     const consoleContainer = $('<div @mouseleave="consoleOut" @mouseover.stop="consoleIn" id="console-container" class="att-top"></div>')
     const widgetIcon = $('<div v-show="!isShowConsole"  class="att-icon-container att-top" ><div class="att-icon"></div></div>')
     const consoleWidget = $('<div v-show="isShowConsole" id="att-console" class="att-col"></div>')
-    const verticalWidget = $('<div class="att-console-title">字幕水平高度</div><div class="att-row"><input @input="changeVertical" class="att-input-range" type="range" v-model:value="vertical"><input class="att-input-value" v-model:value="vertical" @change="changeVertical"></div>')
-    const fontSizeWidget = $('<div class="att-console-title">字幕大小</div><div class="att-row"><input @input="changeFontsize" class="att-input-range" type="range" v-model:value="fontSize" min="1" max="500"  step="5"><input class="att-input-value" v-model:value="fontSize" @change="changeFontsize"></div>')
+    const verticalWidget = $('<div class="att-console-title" style="cursor:pointer;" @click="resetFontPosandSize">重置字幕位置/字号</div>')
+    // const fontSizeWidget = $('<div class="att-console-title">恢复字幕默认设置</div><div class="att-row"><input @input="changeFontsize" class="att-input-range" type="range" v-model:value="fontSize" min="1" max="500"  step="5"><input class="att-input-value" v-model:value="fontSize" @change="changeFontsize"></div>')
     const colorWidget = $('<div class="att-console-title">字幕颜色</div><div class="att-row"><input class="att-input-range" placeholder="示例:#030303" v-model:value="color" @change="changeColor" style="padding: 2px;border-radius: 2px;border: 0;border-bottom: 1px solid gray"><div @click="defualtColor" style="cursor:pointer;">默认</div></div>')
     consoleWidget.append(verticalWidget)
-    consoleWidget.append(fontSizeWidget)
+    // consoleWidget.append(fontSizeWidget)
     consoleWidget.append(colorWidget)
     consoleContainer.append(widgetIcon)
     consoleContainer.append(consoleWidget)
@@ -131,9 +140,8 @@
       data() {
         return {
           isShowConsole: false,
-          vertical: config['vertical'],
-          fontSize: config['fontSize'],
-          color: config['color']
+          fontSize: config['font-size'] || 25,
+          color: config['color'] || '#ffffff'
         }
       },
       methods: {
@@ -143,15 +151,8 @@
         consoleOut() {
           this.isShowConsole = false
         },
-        changeVertical() {
-          this.vertical = Math.min(100, Math.max(0, this.vertical))
-          $('#comment-container').css('bottom', this.vertical.toString() + '%')
-          saveConfig()
-        },
-        changeFontsize() {
-          this.fontSize = Math.min(500, Math.max(0, this.fontSize))
-          $('#comment-container').css('fontSize', this.fontSize.toString() + 'px')
-          saveConfig()
+        changeFontsize(){
+          $('#comment-container').css('font-size', this.fontSize.toString()+'px')
         },
         changeColor() {
           $('#comment-container').css('color', this.color.toString())
@@ -161,6 +162,11 @@
           this.color = '#ffffff'
           $('#comment-container').css('color', this.color.toString())
           saveConfig()
+        },
+        resetFontPosandSize(){
+          window.attentionModul.commentApp.widgetStyle = ''
+          $('#comment-container').css('font-size', '25px')
+
         }
       }
     })
@@ -168,29 +174,172 @@
 
   // 注入字幕组件
   ;(function insertCommentWidget() {
-    const container = $('.bilibili-live-player-video-danmaku')
+    const container = $('.bilibili-live-player-video-area')
     if (container.length > 0) {
-      const commentWidget = $('<div id="comment-container" :style="widgetStyle"><div v-for="(comment,index) in comments" :style="boxStyle"><div v-show="comment" :style="commentStyle">{{comment}}</div></div></div>')
-      let widgetStyle = 'z-index: 999;position:absolute;left:50%;transform:translateX(-50%);width:90%;'
-      let boxStyle = ''
-      let commentStyle = 'display:inline-block;backgroundColor:rgba(0,0,0,0.5);position:relative;left:50%;transform:translateX(-50%);word-break: break-all;padding:10px;'
+      const commentWidget = $('<div id="comment-container" :style="widgetStyle" :class="{\'att-comment-fixed\':isFixed,\'att-comment-float\':!isFixed}"><div class="att-comment-box"><span v-show="htmlString" v-html="htmlString" class="att-comment-span" :style="commentStyle" @mousedown="mousedown" @wheel.stop.prevent="mousewheel" @mousemove="mousemove"></span></div></div>')
       container.append(commentWidget)
       window.attentionModul.commentApp = new Vue({
         el: '#comment-container',
         data() {
           return {
-            widgetStyle: widgetStyle,
-            boxStyle: boxStyle,
+            widgetStyle: '',
+            boxStyle: '',
             comments: new Array(window.attentionModul.users.length),
-            commentStyle: commentStyle,
-            dom: document.getElementById('comment-container')
+            commentStyle: '',
+            dom: document.getElementById('comment-container'),
+            htmlString: '',
+            isFixed: true,
+            spanLeft: 0,
+            spanTop: 0,
+            localLeft: 0,
+            localTop: 0,
+            isdrag: false,
+            dragStartLeft: 0,
+            dragStartTop: 0,
+            dragEndLeft: 0,
+            dragEndTop: 0,
+            moveX: 0,
+            moveY: 0
+          }
+        },
+        watch: {
+          comments(data) {
+            let htmlString = ''
+            const length = data.length
+            for (let i = 0; i < length - 1; i++) {
+              if (data[i]) {
+                htmlString += data[i] + '<br>'
+              }
+            }
+            if (data[length - 1]) {
+              htmlString += data[length - 1]
+            }
+            this.htmlString = htmlString
+          },
+          immediate: true
+        },
+        methods: {
+          mousedown() {
+            this.isdrag = true
+            const widget = $('#comment-container')
+            const span = $('.att-comment-span')
+            this.localLeft = widget.position().left
+            this.localTop = widget.position().top
+            if (this.isFixed) {
+              this.isFixed = false
+            }
+            this.widgetStyle = 'transform:translate(' + this.localLeft.toString() + 'px,' + this.localTop.toString() + 'px)'
+            this.spanLeft = span.offset().left
+            this.spanTop = span.offset().top
+          },
+          mousemove(e) {
+          },
+          mousewheel(e){
+            console.log(e)
+            const widget = $('#comment-container')
+            let fontSize = parseInt(widget.css('font-size'))
+            if(e.wheelDeltaY){
+              fontSize -= e.deltaY/25
+            }else {
+              fontSize -= e.deltaY
+
+            }
+            widget.css('font-size',fontSize.toString() + 'px')
+          }
+          ,
+          transform() {
+            this.isFixed = true
+            const widget = $('#comment-container')
+            const player = $('.bilibili-live-player-video-area')
+
+            const widgetX = widget.position().left
+            const widgetY = widget.position().top
+            const widgetHeight = widget.outerHeight()
+            const widgetWidth = widget.outerWidth()
+
+            const heightLevel = widgetY + widgetHeight / 2
+            const widthLevel = widgetX + widgetWidth / 2
+            const playerHeight = player.innerHeight()
+            const playerWidth = player.innerWidth()
+
+            if (heightLevel > playerHeight / 2) {
+              if (widthLevel > playerWidth / 2) {
+                //右下
+                this.widgetStyle = 'bottom:' + (playerHeight - widgetY - widgetHeight).toString() + 'px;right:' + (playerWidth - widgetX - widgetWidth).toString() + 'px'
+              } else {
+                // 左下
+                this.widgetStyle = 'bottom:' + (playerHeight - widgetY - widgetHeight).toString() + 'px;left:' + (widgetX).toString() + 'px'
+              }
+            } else {
+              if (widthLevel > playerWidth / 2) {
+                // 右上
+                this.widgetStyle = 'top:' + (widgetY).toString() + 'px;right:' + (playerWidth - widgetX - widgetWidth).toString() + 'px'
+
+              } else {
+                // 左上
+                this.widgetStyle = 'top:' + (widgetY).toString() + 'px;left:' + (widgetX).toString() + 'px'
+
+              }
+            }
+          }
+          ,
+          isInnerY(moveY) {
+            const videoPlayer = $('.bilibili-live-player-video-area')
+            const comment = $('.att-comment-span')
+            const playerStartY = videoPlayer.offset().top + 1
+            const playerEndY = playerStartY + videoPlayer.height() - 2
+            const commentStartY = this.spanTop + moveY
+            const commentEndY = commentStartY + comment.innerHeight()
+            if (commentStartY <= playerStartY || commentEndY >= playerEndY) {
+              return false
+            } else {
+              return true
+            }
+          },
+          isInnerX(moveX) {
+            const videoPlayer = $('.bilibili-live-player-video-area')
+            const comment = $('.att-comment-span')
+            const playerStartX = videoPlayer.offset().left + 1
+            const playerEndX = playerStartX + videoPlayer.width() - 2
+            const commentStartX = this.spanLeft + moveX
+            const commentEndX = commentStartX + comment.innerWidth()
+            if (commentStartX <= playerStartX || commentEndX >= playerEndX) {
+              return false
+            } else {
+              return true
+            }
           }
         }
       })
-      window.attentionModul.consoleApp.changeVertical()
+      // window.attentionModul.consoleApp.changeVertical()
       window.attentionModul.consoleApp.changeColor()
       window.attentionModul.consoleApp.changeFontsize()
 
+      $('body').bind('mousemove', function (e) {
+        if (window.attentionModul.commentApp.isdrag) {
+          const moveX = e.screenX - window.attentionModul.commentApp.dragStartLeft
+          const moveY = e.screenY - window.attentionModul.commentApp.dragStartTop
+          const isInnerX = window.attentionModul.commentApp.isInnerX(moveX)
+          const isInnerY = window.attentionModul.commentApp.isInnerY(moveY)
+          if (isInnerX) {
+            window.attentionModul.commentApp.moveX = moveX
+          }
+          if (isInnerY) {
+            window.attentionModul.commentApp.moveY = moveY
+          }
+          window.attentionModul.commentApp.widgetStyle = 'transform:translate(' + (window.attentionModul.commentApp.localLeft + window.attentionModul.commentApp.moveX).toString() + 'px,' + (window.attentionModul.commentApp.localTop + window.attentionModul.commentApp.moveY).toString() + 'px)'
+
+        } else {
+          window.attentionModul.commentApp.dragStartLeft = e.screenX
+          window.attentionModul.commentApp.dragStartTop = e.screenY
+        }
+      })
+      $('body').bind('mouseup', function () {
+        if (window.attentionModul.commentApp.isdrag) {
+          window.attentionModul.commentApp.isdrag = false
+          window.attentionModul.commentApp.transform()
+        }
+      })
     } else {
       requestAnimationFrame(function () {
         insertCommentWidget()
@@ -208,6 +357,7 @@
         // 添加点击函数，获取用户uid，调用add函数添加到关注用户列表
         a.click(function () {
           const uid = menu[0].__vue__.uid
+          const username = menu[0].__vue__.username
           addAttentionUser(uid.toString())
         })
       } else {
@@ -222,7 +372,7 @@
   ;(function insertTranslateWidget() {
     let injectAnchor = $('.right-action')
     if (injectAnchor.length > 0) {
-      const translateButton = $('<button id="att-translate" class="att-button" @click="translate">翻译</button>')
+      const translateButton = $('<button id="att-translate" class="att-button" @click="translate" style="cursor: pointer;">翻译</button>')
       injectAnchor.prepend(translateButton)
       window.attentionModul.transApp = new Vue({
         el: '#att-translate',
@@ -231,21 +381,48 @@
         },
         methods: {
           translate() {
-            const query = this.commentVm.chatInput
-            const url = 'http://fanyi.youdao.com/translate_o?client=fanyideskweb&keyfrom=fanyi.web&version=2.1&doctype=json'
-            const salt = "" + (new Date).getTime() + parseInt(10 * Math.random(), 10);
-            const sign = window.attentionModul.md5("fanyideskweb" + query + salt + "n%A-rKaT5fb[Gy?;N5@Tj");
-            var headers = {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Referer": "http://fanyi.youdao.com/"
+            function encodeObject(obj) {
+              let param = ''
+              for (let key in obj) {
+                param += key + '=' + encodeURIComponent(obj[key]) + '&'
+              }
+              return param.substring(0, param.length - 1)
             }
-            const data = 'from=AUTO&to=ja&salt=' + salt + '&sign=' + sign + '&i=' + query
+
+            function getParam(query) {
+              const bv = md5(navigator.appVersion)
+              const ts = "" + (new Date).getTime()
+              const salt = ts + parseInt(10 * Math.random(), 10);
+              const sign = md5("fanyideskweb" + query + salt + "Nw(nmmbP%A-r6U3EUn]Aj")
+              return {
+                i: query,
+                from: "AUTO",
+                to: 'ja',
+                smartresult: 'dict',
+                client: 'fanyideskweb',
+                salt: salt,
+                sign: sign,
+                ts: ts,
+                // bv: bv,
+                doctype: "json",
+                version: "2.1",
+                keyfrom: "fanyi.web",
+                action: "FY_BY_CLICKBUTTION"
+              }
+            }
+
+            const query = this.commentVm.chatInput
+            const url = youdaoAPI
+            const param = getParam(query)
             GM_xmlhttpRequest({
               method: 'POST',
               url: url,
-              data: data,
-              headers: headers,
-              onload(r) {
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Referer": "http://fanyi.youdao.com/"
+              },
+              data: encodeObject(param),
+              onload: function (r) {
                 const res = JSON.parse(r.responseText)
                 if (res.translateResult) {
                   window.attentionModul.transApp.commentVm.chatInput = res.translateResult[0][0].tgt
@@ -278,93 +455,8 @@
     }
   })();
 
-  const consoleStyle = `
 
-
-
-.att-col{
-    display: flex;
-    flex-flow: column nowrap;
-    place-content: center start;
-}
-.att-row{
-    display: flex;
-    flex-flow: row nowrap;
-    place-content: center start;
-    margin:3px 0px 3px 0px;
-}
-.att-top{
-    z-index: 999;
-}
-.att-input{
-    outline: none;
-}
-#console-container{
-    position: absolute;
-    left: 50px;
-    top: 300px;
-    min-height: 48px;
-    min-width: 48px;
-}
-.att-icon-container {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    height: 48px;
-    width: 48px;
-    background-color: #fb7299;
-    border-radius: 4px;
-}
-.att-icon {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    height: 32px;
-    width: 32px;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADFElEQVRYhe2XX2iPURjHP7+N0oYRWWObMZSUJjQKG/JnlCh/LkSaUG6URLlf8pNSciEX1AqzaEXKhdTMnVHmRogxtOZfG/m/r956Th3v791r7++nXPCt0znv8zznOd/3Oc95zvvyzyPlAiDpd7GYAywAioEioBd4BbQCd5MGMpVK/SoICAzQdku6p3i0S6qP8ZHRMhBhNN8c++iSdFVSk/UvQvo2SbP+BIGNIceNkhZKKgjZFUqqkXTOs/0maXUuBJZ4zh5KWjzIsC6T9NSbm5Y0NymBIknvzcEDSWOT7KukkhCJAGclTRwsgVM26Yuk8oSLu1Yp6WuIRI9tVSyBUm/CviwXd+2g+en3fP6QVB1HYK8ZvpGUnyOBYZJ6jUCDpFvmu9slskOex2GB9ZeAH5kUE+Ez0GKF7iOwxmTjgHSkI0mPjOX20NuMkTQlJJsRse/hhN1t/jrseZe3HSVRBD6ass5zEpyKZ5I+SJpnsrQl2RF7DuR9kp6bvZu71vy982TdLseitsCN/QwZBpQBhcAok00DhgJT7Xk0MBwoNXsHt40pz/dF62ujItBp7LaEQhkcn03ec7GkzXbmnSzQ14bm1XvFLGWybSZ7GkXgmimP5ngCXDtu/i57spUm+xS1BTetX5ck3WPg/LR5JvnW90cROG/9JGBDjotvASbY+IInL7e+K2OGhajFQtRlxy+b0Bd52d4U0rlbs3kgApV2bAIcypLADa/0loWIfTLdjoEIBO20GTUmXLhCUqtXbLaG9CddAkoaEUfghBmmvboefB1NHmDhCZL2S3odc5kt8nQH/LtgSEQCOdksoMESMig634ErQCfQZx+mlUCNFSpMvtNLaIcq698ChyPW/CUCZ5QcHXab+n7Ge+M15vGxk8VFoNcbtwPNViOCklwNzASWhuY8AV4C600/G1gO3AbOWLTcenl+HYiKQJC5eyRVxSRcUJ6vZxGp4HMtz49Akh+TKCwCVthPS4VdRj3AHeA+MB3YZBdWgA/AyGA592OSK4Ew8iM+ZgqAVUAd0AEcI+rP6D/+CoCf0HfCu9e1CkQAAAAASUVORK5CYII=');
-}
-#att-console{
-    color: #23ade5;
-    background-color: white;
-    width: 250px;
-    min-height: 48px;
-    padding: 14px 8px 14px 8px;
-    border-radius: 8px;
-}
-.att-console-title{
-    margin:4px;
-}
-.att-input-range{
-    width: 200px;
-    margin-right: 10px;
-    outline: none;
-}
-.att-input-value{
-    width: 20px;
-    text-align: center;
-    border: 0px;
-    border-bottom: 1px solid gray;
-    outline: none;
-}
-.att-button{
-    min-width: 80px;
-    height: 24px;
-    font-size: 12px;
-    background-color: #23ade5;
-    color: #fff;
-    border-radius: 4px;
-    border: 0px;
-    margin-right: 2px;
-}
-.att-button:hover{
-    background-color: #39b5e7;
-}
-
-
-    `
-  $('body').append($('<style></style>').text(consoleStyle))
-  window.attentionModul.md5 = function (md5str) {
+  function md5(md5str) {
     var createMD5String = function (string) {
       var x = Array()
       var k, AA, BB, CC, DD, a, b, c, d
@@ -566,4 +658,125 @@
     }
     return createMD5String(md5str)
   }
+
+  const consoleStyle = `
+
+
+
+.att-col{
+    display: flex;
+    flex-flow: column nowrap;
+    place-content: center start;
+}
+.att-row{
+    display: flex;
+    flex-flow: row nowrap;
+    place-content: center start;
+    margin:3px 0px 3px 0px;
+}
+.att-top{
+    z-index: 999;
+}
+.att-input{
+    outline: none;
+}
+#console-container{
+    position: absolute;
+    left: 50px;
+    top: 300px;
+    min-height: 48px;
+    min-width: 48px;
+}
+.att-icon-container {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    height: 48px;
+    width: 48px;
+    background-color: #fb7299;
+    border-radius: 4px;
+}
+.att-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    height: 32px;
+    width: 32px;
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADFElEQVRYhe2XX2iPURjHP7+N0oYRWWObMZSUJjQKG/JnlCh/LkSaUG6URLlf8pNSciEX1AqzaEXKhdTMnVHmRogxtOZfG/m/r956Th3v791r7++nXPCt0znv8zznOd/3Oc95zvvyzyPlAiDpd7GYAywAioEioBd4BbQCd5MGMpVK/SoICAzQdku6p3i0S6qP8ZHRMhBhNN8c++iSdFVSk/UvQvo2SbP+BIGNIceNkhZKKgjZFUqqkXTOs/0maXUuBJZ4zh5KWjzIsC6T9NSbm5Y0NymBIknvzcEDSWOT7KukkhCJAGclTRwsgVM26Yuk8oSLu1Yp6WuIRI9tVSyBUm/CviwXd+2g+en3fP6QVB1HYK8ZvpGUnyOBYZJ6jUCDpFvmu9slskOex2GB9ZeAH5kUE+Ez0GKF7iOwxmTjgHSkI0mPjOX20NuMkTQlJJsRse/hhN1t/jrseZe3HSVRBD6ass5zEpyKZ5I+SJpnsrQl2RF7DuR9kp6bvZu71vy982TdLseitsCN/QwZBpQBhcAok00DhgJT7Xk0MBwoNXsHt40pz/dF62ujItBp7LaEQhkcn03ec7GkzXbmnSzQ14bm1XvFLGWybSZ7GkXgmimP5ngCXDtu/i57spUm+xS1BTetX5ck3WPg/LR5JvnW90cROG/9JGBDjotvASbY+IInL7e+K2OGhajFQtRlxy+b0Bd52d4U0rlbs3kgApV2bAIcypLADa/0loWIfTLdjoEIBO20GTUmXLhCUqtXbLaG9CddAkoaEUfghBmmvboefB1NHmDhCZL2S3odc5kt8nQH/LtgSEQCOdksoMESMig634ErQCfQZx+mlUCNFSpMvtNLaIcq698ChyPW/CUCZ5QcHXab+n7Ge+M15vGxk8VFoNcbtwPNViOCklwNzASWhuY8AV4C600/G1gO3AbOWLTcenl+HYiKQJC5eyRVxSRcUJ6vZxGp4HMtz49Akh+TKCwCVthPS4VdRj3AHeA+MB3YZBdWgA/AyGA592OSK4Ew8iM+ZgqAVUAd0AEcI+rP6D/+CoCf0HfCu9e1CkQAAAAASUVORK5CYII=');
+}
+#att-console{
+    color: #23ade5;
+    background-color: white;
+    width: 250px;
+    min-height: 48px;
+    padding: 14px 8px 14px 8px;
+    border-radius: 8px;
+}
+.att-console-title{
+    margin:4px;
+}
+.att-input-range{
+    width: 200px;
+    margin-right: 10px;
+    outline: none;
+}
+.att-input-value{
+    width: 20px;
+    text-align: center;
+    border: 0px;
+    border-bottom: 1px solid gray;
+    outline: none;
+}
+.att-button{
+    min-width: 80px;
+    height: 24px;
+    font-size: 12px;
+    background-color: #23ade5;
+    color: #fff;
+    border-radius: 4px;
+    border: 0px;
+    margin-right: 2px;
+}
+.att-button:hover{
+    background-color: #39b5e7;
+}
+.att-comment-span{
+    background-color:rgba(0,0,0,0.4);
+    position:relative;
+    white-space: normal;
+    border-radius: 3px;
+    padding: 0 8px;
+    text-align: center;
+    line-height: normal;
+    font-family: none;
+    -webkit-box-decoration-break:clone;
+    user-select: none;
+    cursor: move;
+    box-decoration-break: clone;
+    vertical-align: middle;
+}
+#comment-container{
+    z-index: 999;
+    position:absolute;
+    width:100%;
+    text-align: center;
+}
+.att-comment-box{
+    display: inline-block;
+    vertical-align: middle;
+    text-align: center;
+
+}
+.att-comment-fixed{
+    bottom: 71px;
+}
+.att-comment-float{
+    left: auto;
+    top:0px;
+}
+
+
+    `
+  $('body').append($('<style></style>').text(consoleStyle))
 })();
