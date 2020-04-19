@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         b站vtuber直播同传评论转字幕
 // @namespace    http://tampermonkey.net/
-// @version      0.3.3
+// @version      0.3.4
 // @author       Manakanemu
 // @include      https://live.bilibili.com/*
 // @exclude      https://live.bilibili.com/p/*
@@ -235,7 +235,6 @@
           mousemove(e) {
           },
           mousewheel(e){
-            console.log(e)
             const widget = $('#comment-container')
             let fontSize = parseInt(widget.css('font-size'))
             if(e.wheelDeltaY){
