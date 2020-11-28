@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         不知道有没有用的同传man辅助
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      1.0
 // @author       You
 // @match        https://live.bilibili.com/*
 // @grant        none
@@ -13,54 +13,31 @@
 
 
 (function () {
+    // left 和 right 可以改成自己需要的包裹符号，默认使用中文括号
+    const left = '【'
+    const right= '】'
+    
 
-  //debug用
-  function showVm() {
-    return [document.getElementsByClassName('control-panel-ctnr')[0].__vue__]
-  }
 
-  function addBraket() {
-    let comment = window.translatorTool.vm.chatInput.match(/^[ 【]*(.*?)[ 】]*$/i)[1]
-    window.translatorTool.vm.chatInput = '【' + comment + '】'
-  }
 
-  function removeBraket() {
-    let comment = window.translatorTool.vm.chatInput.match(/^(.*?)[ 】]*$/i)[1]
-    window.translatorTool.vm.chatInput = comment
-  }
-
-  function removeLastBracket() {
-    let comment = window.translatorTool.vm.chatInput.match(/^(.*?)[ 】]*$/i)[1]
-    window.translatorTool.vm.chatInput = comment.substring(0, comment.length - 1) + '】】'
-  }
-
-  // 定义translatortools对象
-  window.translatorTool = {}
-  window.translatorTool.showVm = showVm
-  window.translatorTool.add = addBraket
-  window.translatorTool.remove = removeBraket
-  window.translatorTool.removeLast = removeLastBracket
-
-  // 递归检索评论框存在性
-  ;(function init() {
-    const el = $('#chat-control-panel-vm textarea')
-    if (el.length > 0) {
-      window.translatorTool.vm = document.getElementsByClassName('control-panel-ctnr')[0].__vue__
-      // 抬起按键添加括号
-      el.bind('keyup', function (e) {
-        window.translatorTool.add()
-      })
-      el.bind('keydown', function (e) {
-        if (e.keyCode === 8) {
-          window.translatorTool.removeLast()
-        } else {
-          window.translatorTool.remove()
+    // 业务逻辑
+    function inject(){    
+        const chatPanel =  document.getElementsByClassName('control-panel-ctnr')[0]
+        if(chatPanel){
+            const vChatPanel = chatPanel.__vue__
+            if(vChatPanel != undefined){
+                const sendDanmaku = vChatPanel.sendDanmaku
+                vChatPanel.sendDanmaku = function(n){
+                    vChatPanel.chatInput = left+vChatPanel.chatInput+right
+                    sendDanmaku(n)
+                }
+            }else{
+                requestAnimationFrame(inject)
+            }
+        }else{
+            requestAnimationFrame(inject)
         }
-      })
-    } else {
-      requestAnimationFrame(function () {
-        init()
-      })
     }
+    inject()
   })();
-})();
+  
